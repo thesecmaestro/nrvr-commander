@@ -749,15 +749,9 @@ def installToolsIntoTestVm(vmIdentifiers, forceThisStep=False):
                               user=testVm.regularUser,
                               exceptionIfNotZero=False)
             waitingForJavawInstallerSuccess = True
-
-            # must restart for change of PATH to be effective
-            # shut down
-            testVm.shutdownCommand()
-            VMwareHypervisor.local.sleepUntilNotRunning(testVm.vmxFilePath, ticker=True)
-            # start up until successful login into GUI
-            VMwareHypervisor.local.start(testVm.vmxFilePath, gui=True, extraSleepSeconds=0)
-            CygwinSshCommand.sleepUntilIsGuiAvailable(userSshParameters, ticker=True)            
+            count = 0
             while waitingForJavawInstallerSuccess:
+                count += 1
                 time.sleep(5.0)
                 javaVersion = testVm.sshCommand(
                     ["java -version"],
@@ -765,6 +759,17 @@ def installToolsIntoTestVm(vmIdentifiers, forceThisStep=False):
                     exceptionIfNotZero=False)
                 if not javaVersion.returncode:
                     waitingForJavawInstallerSuccess = False
+                if count > 10:
+                    # Perhaps we must restart for change of PATH to be effective
+                    # shut down
+                    testVm.shutdownCommand()
+                    VMwareHypervisor.local.sleepUntilNotRunning(testVm.vmxFilePath, ticker=True)
+                    # start up until successful login into GUI
+                    VMwareHypervisor.local.start(testVm.vmxFilePath, gui=True, extraSleepSeconds=0)
+                    CygwinSshCommand.sleepUntilIsGuiAvailable(userSshParameters, ticker=True)
+                    count = 0
+
+           
             # suppress scheduled check for Java updates
             testVm.sshCommand(
                 [r"cmd.exe /C "
