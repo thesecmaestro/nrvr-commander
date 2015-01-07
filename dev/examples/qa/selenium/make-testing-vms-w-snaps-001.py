@@ -749,7 +749,7 @@ def installToolsIntoTestVm(vmIdentifiers, forceThisStep=False):
                               user=testVm.regularUser,
                               exceptionIfNotZero=False)
             waitingForJavawInstallerSuccess = True
-            # Need to reboot before path takes effect SW
+
             # must restart for change of PATH to be effective
             # shut down
             testVm.shutdownCommand()
