@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 """Make a set of virtual machines and use them to run tests;
 specifically this script runs Selenium automated tests of a website;
 specifically this script should allow load testing, which so far
@@ -123,9 +124,12 @@ nodejsSourceTarUrl = "http://nodejs.org/dist/v0.10.33/node-v0.10.33.tar.gz"
 testsInvokerScript = "tests-invoker.py"
 testsDirectory = "tests"
 
+#debug
+debug  = 0
+
 # will modulo over machinesPattern,
 # customize as needed
-testVmsRange = range(181, 184) #191) # or more
+testVmsRange = range(181, 182) #191) # or more
 
 # customize as needed
 rootpw = "redwood"
@@ -145,9 +149,9 @@ class Arch(str): pass # make sure it is a string to avoid string-number unequali
 # ub1404 - Ubuntu 14.04 LTS
 # win - Windows
 machinesPattern = [#MachineParameters(distro="sl", arch=Arch(32), browser="firefox", lang="en_US.UTF-8", memsize=900, cores=1),
-                   MachineParameters(distro="cent", arch=Arch(32), browser="firefox", lang="en_US.UTF-8", memsize=900, cores=1),
+                   #MachineParameters(distro="cent", arch=Arch(32), browser="firefox", lang="en_US.UTF-8", memsize=900, cores=1),
                    #MachineParameters(distro="ub1204", arch=Arch(32), browser="chrome", lang="en_US.UTF-8", memsize=960, cores=1),
-                   MachineParameters(distro="ub1404", arch=Arch(32), browser="chrome", lang="en_US.UTF-8", memsize=960, cores=1),
+                   #MachineParameters(distro="ub1404", arch=Arch(32), browser="chrome", lang="en_US.UTF-8", memsize=960, cores=1),
                    #MachineParameters(distro="sl", arch=Arch(32), browser="firefox", lang="de_DE.UTF-8", memsize=920, cores=1),
                    #MachineParameters(distro="ub1204", arch=Arch(32), browser="chrome", lang="de_DE.UTF-8", memsize=980, cores=1),
                    #MachineParameters(distro="ub1404", arch=Arch(32), browser="chrome", lang="de_DE.UTF-8", memsize=980, cores=1),
@@ -308,8 +312,11 @@ def makeTestVmWithGui(vmIdentifiers, forceThisStep=False):
             VMwareHypervisor.local.start(testVm.vmxFilePath, gui=True, extraSleepSeconds=0)
             VMwareHypervisor.local.sleepUntilNotRunning(testVm.vmxFilePath, ticker=True)
             testVm.vmxFile.removeAllIdeCdromImages()
-            modifiedDistroIsoImage.remove()
-            #
+
+            # Keep the iso image around if we are debugging
+            if debug == 0:
+                modifiedDistroIsoImage.remove()
+            
             # start up for accepting known host key
             VMwareHypervisor.local.start(testVm.vmxFilePath, gui=True, extraSleepSeconds=0)
             testVm.sleepUntilHasAcceptedKnownHostKey(ticker=True)
@@ -556,6 +563,8 @@ def makeTestVmWithGui(vmIdentifiers, forceThisStep=False):
             #
             # install Cygwin 32-bit even in Windows 64-bit
             # see http://stackoverflow.com/questions/18329233/is-it-advisable-to-switch-from-cygwin-32bit-to-cygwin-64bit
+          
+            
             cygwinArch = Arch(32)
             # locally downloaded Cygwin packages directory
             # see http://www.cygwin.com/install.html
@@ -662,13 +671,14 @@ def makeTestVmWithGui(vmIdentifiers, forceThisStep=False):
             VMwareHypervisor.local.start(testVm.vmxFilePath, gui=True, extraSleepSeconds=0)
             VMwareHypervisor.local.sleepUntilNotRunning(testVm.vmxFilePath, ticker=True)
             testVm.vmxFile.removeAllIdeCdromImages()
-            modifiedDistroIsoImage.remove()
+            #modifiedDistroIsoImage.remove()
             #
             # start up for accepting known host key
             VMwareHypervisor.local.start(testVm.vmxFilePath, gui=True, extraSleepSeconds=0)
             testVm.sleepUntilHasAcceptedKnownHostKey(ticker=True)
             #
             # shut down for snapshot
+            testVm.portsFile.setShutdown(command="shutdown -s 20", user=regularUser.username)
             testVm.shutdownCommand()
             VMwareHypervisor.local.sleepUntilNotRunning(testVm.vmxFilePath, ticker=True)
         #
@@ -703,7 +713,8 @@ def installToolsIntoTestVm(vmIdentifiers, forceThisStep=False):
         elif distro == "win":
             CygwinSshCommand.sleepUntilIsGuiAvailable(userSshParameters, ticker=True)
         #
-        # a necessity on some international version OS
+        # a necessity on some
+        # international version OS
         testVm.sshCommand(["mkdir -p ~/Downloads"], user=testVm.regularUser)
         if distro == "win":
             testVm.sshCommand(['mkdir -p "$( cygpath -u "$USERPROFILE/Downloads" )"'], user=testVm.regularUser)
@@ -738,6 +749,14 @@ def installToolsIntoTestVm(vmIdentifiers, forceThisStep=False):
                               user=testVm.regularUser,
                               exceptionIfNotZero=False)
             waitingForJavawInstallerSuccess = True
+            # Need to reboot before path takes effect SW
+            # must restart for change of PATH to be effective
+            # shut down
+            testVm.shutdownCommand()
+            VMwareHypervisor.local.sleepUntilNotRunning(testVm.vmxFilePath, ticker=True)
+            # start up until successful login into GUI
+            VMwareHypervisor.local.start(testVm.vmxFilePath, gui=True, extraSleepSeconds=0)
+            CygwinSshCommand.sleepUntilIsGuiAvailable(userSshParameters, ticker=True)            
             while waitingForJavawInstallerSuccess:
                 time.sleep(5.0)
                 javaVersion = testVm.sshCommand(
