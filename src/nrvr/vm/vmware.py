@@ -968,7 +968,9 @@ class VMwareHypervisor(object):
         # really want abspath and expanduser
         os.path.abspath(os.path.expanduser(vmxFilePath))
         running = self.listRunning()
-        return vmxFilePath in running
+        if os.path.realpath(vmxFilePath) in running or vmxFilePath in running:
+            return True
+        return False
 
     def sleepUntilNotRunning(self, vmxFilePath, checkIntervalSeconds=5.0, ticker=False):
         """If not running return, else loop sleeping for checkIntervalSeconds."""
